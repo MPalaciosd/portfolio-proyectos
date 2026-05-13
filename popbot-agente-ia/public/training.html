@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrenar Bot — Secretario IA</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; }
+
+    nav { padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; }
+    nav .logo { font-size: 18px; font-weight: 700; color: #a78bfa; }
+    nav a { color: #aaa; text-decoration: none; font-size: 13px; margin-left: 20px; }
+
+    .page { max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: gap; gap: 12px; }
+    h1 { font-size: 24px; font-weight: 700; }
+    .subtitle { color: #666; font-size: 14px; margin-top: 4px; }
+
+    /* Formulario añadir */
+    .add-form { background: #16161f; border: 1px solid #2a2a3a; border-radius: 14px; padding: 24px; margin-bottom: 28px; }
+    .add-form h2 { font-size: 16px; font-weight: 700; color: #a78bfa; margin-bottom: 16px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+    .form-grid.full { grid-template-columns: 1fr; }
+    label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; }
+    textarea, input[type=text] {
+      width: 100%; background: #0f0f1a; border: 1px solid #2a2a3a; border-radius: 8px;
+      padding: 10px 12px; color: #e0e0e0; font-size: 14px; font-family: inherit; resize: vertical;
+    }
+    textarea:focus, input[type=text]:focus { outline: none; border-color: #a78bfa; }
+    textarea.input-box { min-height: 80px; border-left: 3px solid #667eea; }
+    textarea.output-box { min-height: 80px; border-left: 3px solid #27ae60; }
+    .form-bottom { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .categoria-input { width: 180px; }
+
+    /* Filtros */
+    .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid #2a2a3a; background: transparent; color: #888; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+    .filter-btn.active { background: #a78bfa22; border-color: #a78bfa; color: #a78bfa; }
+    .search-box { flex: 1; max-width: 280px; background: #16161f; border: 1px solid #2a2a3a; border-radius: 8px; padding: 7px 12px; color: #e0e0e0; font-size: 13px; }
+    .search-box:focus { outline: none; border-color: #a78bfa; }
+    .count-badge { margin-left: auto; color: #555; font-size: 13px; }
+
+    /* Lista de ejemplos */
+    .examples-list { display: flex; flex-direction: column; gap: 10px; }
+    .example-card { background: #16161f; border: 1px solid #2a2a3a; border-radius: 12px; padding: 16px 20px; transition: border-color 0.15s; }
+    .example-card:hover { border-color: #3a3a4a; }
+    .example-card.inactive { opacity: 0.45; }
+
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .cat-badge { font-size: 11px; padding: 3px 10px; border-radius: 12px; background: #1e1e2e; color: #a78bfa; font-weight: 600; }
+    .card-actions { display: flex; gap: 6px; }
+    .btn-icon { background: none; border: none; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 14px; color: #666; transition: color 0.15s, background 0.15s; }
+    .btn-icon:hover { background: #2a2a3a; color: #e0e0e0; }
+    .btn-icon.delete:hover { color: #e74c3c; }
+    .btn-icon.toggle-off { color: #888; }
+
+    .card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .msg-block { padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+    .msg-user { background: #1a1a2e; border-left: 3px solid #667eea; color: #ccc; }
+    .msg-bot { background: #1a2e1a; border-left: 3px solid #27ae60; color: #ccc; }
+    .msg-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+    .card-notes { font-size: 12px; color: #555; margin-top: 8px; font-style: italic; }
+
+    /* Edit inline */
+    .edit-form { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #2a2a3a; }
+    .edit-form.open { display: block; }
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+
+    /* Buttons */
+    .btn { padding: 9px 20px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; transition: opacity 0.15s; }
+    .btn-primary { background: linear-gradient(135deg, #a78bfa, #667eea); color: #fff; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-sm { padding: 6px 14px; font-size: 13px; }
+    .btn-ghost { background: transparent; border: 1px solid #2a2a3a; color: #aaa; }
+    .btn-ghost:hover { border-color: #a78bfa; color: #a78bfa; }
+
+    .empty { text-align: center; padding: 60px 20px; color: #444; }
+    #toast { position: fixed; bottom: 24px; right: 24px; background: #27ae60; color: #fff; padding: 12px 20px; border-radius: 10px; display: none; font-size: 13px; z-index: 999; }
+  </style>
+</head>
+<body>
+<nav>
+  <div class="logo">Secretario IA — Entrenamiento</div>
+  <div>
+    <a href="/">Chat</a>
+    <a href="/admin">Admin</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="header-row">
+    <div>
+      <h1>Entrenar al bot</h1>
+      <div class="subtitle">Añade ejemplos de mensajes y cómo debe responder. El bot aprende al instante.</div>
+    </div>
+  </div>
+
+  <!-- Formulario de nuevo ejemplo -->
+  <div class="add-form">
+    <h2>+ Nuevo ejemplo</h2>
+    <div class="form-grid">
+      <div>
+        <label>EL USUARIO DICE...</label>
+        <textarea class="input-box" id="new-input" placeholder="Ej: Ponme fuerza 45 min el lunes 13"></textarea>
+      </div>
+      <div>
+        <label>EL BOT DEBE RESPONDER...</label>
+        <textarea class="output-box" id="new-output" placeholder="Ej: He añadido una sesión de entrenamiento de fuerza de 45 minutos el lunes 13 de abril."></textarea>
+      </div>
+    </div>
+    <div class="form-bottom">
+      <div>
+        <label>Categoría</label>
+        <input type="text" id="new-categoria" class="categoria-input" placeholder="entrenamiento" list="cats-list">
+        <datalist id="cats-list"></datalist>
+      </div>
+      <div style="flex:1">
+        <label>Nota interna (opcional)</label>
+        <input type="text" id="new-notas" placeholder="Para recordar por qué añadiste este ejemplo">
+      </div>
+      <button class="btn btn-primary" onclick="addExample()" style="align-self:flex-end">Guardar ejemplo</button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filters">
+    <input class="search-box" id="search" placeholder="Buscar..." oninput="filterExamples()">
+    <button class="filter-btn active" data-cat="" onclick="setCat(this, '')">Todos</button>
+    <div id="cat-filters"></div>
+    <span class="count-badge" id="count-badge"></span>
+  </div>
+
+  <!-- Lista -->
+  <div class="examples-list" id="examples-list">
+    <div class="empty">Cargando...</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let allExamples = [];
+let activeCat = '';
+
+function showToast(msg, error = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = error ? '#e74c3c' : '#27ae60';
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+async function load() {
+  const [exRes, catRes] = await Promise.all([
+    fetch('/api/training').then(r => r.json()),
+    fetch('/api/training/categorias').then(r => r.json()),
+  ]);
+  allExamples = exRes.examples || [];
+  renderCatFilters(catRes.categorias || []);
+  renderExamples();
+}
+
+function renderCatFilters(cats) {
+  // Datalist para autocompletar
+  document.getElementById('cats-list').innerHTML = cats.map(c => `<option value="${c}">`).join('');
+
+  // Botones de filtro
+  const container = document.getElementById('cat-filters');
+  container.innerHTML = cats.map(c =>
+    `<button class="filter-btn" data-cat="${c}" onclick="setCat(this,'${c}')">${c}</button>`
+  ).join('');
+}
+
+function setCat(btn, cat) {
+  activeCat = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderExamples();
+}
+
+function filterExamples() {
+  renderExamples();
+}
+
+function renderExamples() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const list = allExamples.filter(e => {
+    if (activeCat && e.categoria !== activeCat) return false;
+    if (q && !e.input.toLowerCase().includes(q) && !e.output.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  document.getElementById('count-badge').textContent = `${list.length} ejemplo${list.length !== 1 ? 's' : ''}`;
+
+  if (list.length === 0) {
+    document.getElementById('examples-list').innerHTML = '<div class="empty">No hay ejemplos. ¡Añade el primero!</div>';
+    return;
+  }
+
+  document.getElementById('examples-list').innerHTML = list.map(e => `
+    <div class="example-card ${e.activo ? '' : 'inactive'}" id="card-${e._id}">
+      <div class="card-header">
+        <span class="cat-badge">${esc(e.categoria || 'general')}</span>
+        <div class="card-actions">
+          <button class="btn-icon ${e.activo ? '' : 'toggle-off'}" title="${e.activo ? 'Desactivar' : 'Activar'}" onclick="toggleActive('${e._id}', ${!e.activo})">
+            ${e.activo ? '✅' : '⭕'}
+          </button>
+          <button class="btn-icon" title="Editar" onclick="toggleEdit('${e._id}')">✏️</button>
+          <button class="btn-icon delete" title="Borrar" onclick="deleteExample('${e._id}')">🗑️</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="msg-block msg-user">
+          <div class="msg-label">Usuario dice</div>
+          ${esc(e.input)}
+        </div>
+        <div class="msg-block msg-bot">
+          <div class="msg-label">Bot responde</div>
+          ${esc(e.output)}
+        </div>
+      </div>
+      ${e.notas ? `<div class="card-notes">📝 ${esc(e.notas)}</div>` : ''}
+
+      <!-- Formulario de edición inline -->
+      <div class="edit-form" id="edit-${e._id}">
+        <div class="edit-grid">
+          <div>
+            <label>El usuario dice...</label>
+            <textarea class="input-box" id="ei-${e._id}">${esc(e.input)}</textarea>
+          </div>
+          <div>
+            <label>El bot responde...</label>
+            <textarea class="output-box" id="eo-${e._id}">${esc(e.output)}</textarea>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="text" id="ec-${e._id}" value="${esc(e.categoria||'')}" placeholder="categoría" style="width:150px">
+          <input type="text" id="en-${e._id}" value="${esc(e.notas||'')}" placeholder="nota interna" style="flex:1">
+          <button class="btn btn-primary btn-sm" onclick="saveEdit('${e._id}')">Guardar</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleEdit('${e._id}')">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleEdit(id) {
+  const form = document.getElementById(`edit-${id}`);
+  form.classList.toggle('open');
+}
+
+async function addExample() {
+  const input = document.getElementById('new-input').value.trim();
+  const output = document.getElementById('new-output').value.trim();
+  const categoria = document.getElementById('new-categoria').value.trim() || 'general';
+  const notas = document.getElementById('new-notas').value.trim();
+
+  if (!input || !output) {
+    showToast('Escribe el mensaje del usuario y la respuesta del bot.', true);
+    return;
+  }
+
+  const res = await fetch('/api/training', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input, output, categoria, notas }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    showToast('Ejemplo añadido. El bot aprende al instante.');
+    document.getElementById('new-input').value = '';
+    document.getElementById('new-output').value = '';
+    document.getElementById('new-notas').value = '';
+    await load();
+  } else {
+    showToast(data.error || 'Error al guardar.', true);
+  }
+}
+
+async function saveEdit(id) {
+  const input = document.getElementById(`ei-${id}`).value.trim();
+  const output = document.getElementById(`eo-${id}`).value.trim();
+  const categoria = document.getElementById(`ec-${id}`).value.trim();
+  const notas = document.getElementById(`en-${id}`).value.trim();
+
+  const res = await fetch(`/api/training/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input, output, categoria, notas }),
+  });
+  const data = await res.json();
+  if (data.ok) { showToast('Guardado.'); await load(); }
+  else showToast(data.error || 'Error.', true);
+}
+
+async function toggleActive(id, activo) {
+  await fetch(`/api/training/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ activo }),
+  });
+  await load();
+}
+
+async function deleteExample(id) {
+  if (!confirm('¿Borrar este ejemplo?')) return;
+  await fetch(`/api/training/${id}`, { method: 'DELETE' });
+  showToast('Ejemplo eliminado.');
+  await load();
+}
+
+function esc(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+load();
+</script>
+</body>
+</html>

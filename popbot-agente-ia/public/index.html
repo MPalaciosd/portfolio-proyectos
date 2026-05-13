@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Barbería — Reserva tu cita</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chat-container {
+      width: 420px;
+      max-width: 100vw;
+      height: 680px;
+      max-height: 100vh;
+      background: #16213e;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    .chat-header {
+      background: linear-gradient(135deg, #0f3460 0%, #533483 100%);
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #e94560, #f5a623);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .header-info h2 {
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: #a0e4b0;
+      font-size: 12px;
+    }
+
+    .status-dot::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #4caf50;
+    }
+
+    .header-right {
+      margin-left: auto;
+    }
+
+    .admin-link {
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .admin-link:hover { color: #fff; }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: #333 transparent;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      line-height: 1.5;
+      font-size: 14px;
+      word-break: break-word;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.bot {
+      background: #0f3460;
+      color: #e0e0e0;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.user {
+      background: linear-gradient(135deg, #533483, #e94560);
+      color: #fff;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+
+    .typing-indicator {
+      display: none;
+      align-self: flex-start;
+      background: #0f3460;
+      padding: 12px 16px;
+      border-radius: 16px;
+      border-bottom-left-radius: 4px;
+    }
+
+    .typing-indicator.show { display: flex; gap: 4px; align-items: center; }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #888;
+      animation: bounce 1.2s infinite;
+    }
+
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30%            { transform: translateY(-5px); }
+    }
+
+    .input-area {
+      padding: 14px 16px;
+      background: #0d1117;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    #messageInput {
+      flex: 1;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 22px;
+      padding: 10px 16px;
+      color: #e0e0e0;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      min-height: 42px;
+      line-height: 1.4;
+      font-family: inherit;
+    }
+
+    #messageInput:focus { border-color: #533483; }
+    #messageInput::placeholder { color: #64748b; }
+
+    #sendBtn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #533483, #e94560);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: opacity 0.2s;
+    }
+
+    #sendBtn:hover { opacity: 0.85; }
+    #sendBtn:disabled { opacity: 0.4; cursor: default; }
+
+    .welcome-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 16px 12px;
+    }
+
+    .chip {
+      background: #0f3460;
+      color: #a0c4ff;
+      border: 1px solid #1e3a5f;
+      border-radius: 20px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .chip:hover { background: #1a4a80; }
+
+    .timestamp {
+      font-size: 10px;
+      color: #475569;
+      text-align: center;
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <div class="avatar">✂️</div>
+      <div class="header-info">
+        <h2 id="shopName">Barbería</h2>
+        <div class="status-dot">En línea</div>
+      </div>
+      <div class="header-right">
+        <a class="admin-link" href="/admin" target="_blank">Panel ↗</a>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="timestamp" id="welcomeTime"></div>
+    </div>
+
+    <div class="typing-indicator" id="typingIndicator">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+
+    <div class="welcome-chips" id="chips">
+      <span class="chip" onclick="sendQuick('Quiero reservar una cita')">📅 Reservar cita</span>
+      <span class="chip" onclick="sendQuick('¿Qué servicios ofrecéis?')">💈 Servicios</span>
+      <span class="chip" onclick="sendQuick('¿Cuál es el horario?')">🕐 Horario</span>
+      <span class="chip" onclick="sendQuick('Ver mis citas')">📋 Mis citas</span>
+    </div>
+
+    <div class="input-area">
+      <textarea
+        id="messageInput"
+        placeholder="Escribe tu mensaje..."
+        rows="1"
+      ></textarea>
+      <button id="sendBtn" onclick="sendMessage()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    const messagesDiv = document.getElementById('messages');
+    const input = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const typingIndicator = document.getElementById('typingIndicator');
+    const chips = document.getElementById('chips');
+
+    // Mostrar hora de inicio
+    document.getElementById('welcomeTime').textContent = new Date().toLocaleTimeString('es-ES', {
+      hour: '2-digit', minute: '2-digit'
+    });
+
+    // Cargar config del servidor
+    fetch('/api/appointments/services')
+      .then(r => r.json())
+      .catch(() => {});
+
+    // Mensaje de bienvenida
+    setTimeout(() => {
+      addBotMessage('¡Hola! 👋 Soy el asistente de la barbería. ¿En qué puedo ayudarte hoy?\n\nPuedo reservarte una cita, informarte sobre precios o gestionar reservas existentes.');
+    }, 400);
+
+    // Eventos Socket.io
+    socket.on('bot_message', (data) => {
+      addBotMessage(data.text);
+      sendBtn.disabled = false;
+    });
+
+    socket.on('typing', (isTyping) => {
+      typingIndicator.classList.toggle('show', isTyping);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+
+    // Enviar mensaje
+    function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+
+      addUserMessage(text);
+      socket.emit('message', { message: text });
+      input.value = '';
+      input.style.height = 'auto';
+      sendBtn.disabled = true;
+      chips.style.display = 'none';
+    }
+
+    function sendQuick(text) {
+      input.value = text;
+      sendMessage();
+    }
+
+    function addBotMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'message bot';
+      div.innerHTML = formatText(text);
+      messagesDiv.appendChild(div);
+      scroll();
+    }
+
+    function addUserMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'message user';
+      div.textContent = text;
+      messagesDiv.appendChild(div);
+      scroll();
+    }
+
+    function formatText(text) {
+      return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+    }
+
+    function scroll() {
+      setTimeout(() => { messagesDiv.scrollTop = messagesDiv.scrollHeight; }, 50);
+    }
+
+    // Enter para enviar, Shift+Enter para nueva línea
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Auto-resize textarea
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+  </script>
+</body>
+</html>

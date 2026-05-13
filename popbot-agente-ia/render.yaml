@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: secretario-ia
+    runtime: node
+    buildCommand: npm install
+    startCommand: node index.js
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SHOP_NAME
+        sync: false
+      - key: ASSISTANT_NAME
+        sync: false
+      - key: BUSINESS_HOURS_START
+        sync: false
+      - key: BUSINESS_HOURS_END
+        sync: false
+      - key: WORKING_DAYS
+        sync: false
+      - key: SLOT_INTERVAL
+        sync: false
+      - key: MAX_HISTORY_MESSAGES
+        sync: false
+      - key: APP_PUBLIC_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

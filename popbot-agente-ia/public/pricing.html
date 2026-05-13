@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planes — pop BOT</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; }
+    nav { padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; }
+    nav .logo { font-size: 22px; font-weight: 700; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    nav a { color: #aaa; text-decoration: none; margin-left: 24px; font-size: 14px; }
+    nav a:hover { color: #fff; }
+
+    .hero { text-align: center; padding: 64px 24px 32px; }
+    .hero h1 { font-size: 42px; font-weight: 800; background: linear-gradient(135deg, #667eea, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px; }
+    .hero p { color: #888; font-size: 18px; max-width: 480px; margin: 0 auto; }
+
+    .plans { display: flex; gap: 24px; max-width: 960px; margin: 48px auto; padding: 0 24px; justify-content: center; flex-wrap: wrap; }
+    .plan { background: #16161f; border: 1px solid #2a2a3a; border-radius: 16px; padding: 32px; flex: 1; min-width: 260px; max-width: 300px; display: flex; flex-direction: column; transition: transform 0.2s, border-color 0.2s; }
+    .plan:hover { transform: translateY(-4px); border-color: #667eea; }
+    .plan.popular { border-color: #667eea; position: relative; }
+    .plan.popular::before { content: '⭐ Más popular'; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: #667eea; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 16px; border-radius: 20px; white-space: nowrap; }
+
+    .plan-name { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .plan-price { font-size: 42px; font-weight: 800; margin-bottom: 4px; }
+    .plan-price span { font-size: 18px; font-weight: 400; color: #888; }
+    .plan-credits { color: #a78bfa; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
+
+    .plan-features { list-style: none; flex: 1; margin-bottom: 24px; }
+    .plan-features li { padding: 8px 0; border-bottom: 1px solid #222; font-size: 14px; color: #ccc; }
+    .plan-features li::before { content: '✓ '; color: #667eea; font-weight: 700; }
+
+    .btn { display: block; text-align: center; padding: 14px; border-radius: 10px; font-weight: 700; font-size: 16px; cursor: pointer; border: none; text-decoration: none; transition: opacity 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-outline { background: transparent; border: 1px solid #667eea; color: #667eea; }
+    .btn-outline:hover { background: #667eea; color: #fff; }
+
+    .faq { max-width: 720px; margin: 48px auto; padding: 0 24px 64px; }
+    .faq h2 { text-align: center; font-size: 28px; margin-bottom: 32px; }
+    .faq-item { background: #16161f; border: 1px solid #2a2a3a; border-radius: 12px; padding: 20px 24px; margin-bottom: 12px; }
+    .faq-item h3 { font-size: 16px; margin-bottom: 8px; }
+    .faq-item p { color: #888; font-size: 14px; line-height: 1.6; }
+
+    #toast { position: fixed; bottom: 24px; right: 24px; background: #333; color: #fff; padding: 14px 20px; border-radius: 10px; display: none; font-size: 14px; z-index: 999; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">pop BOT</div>
+    <div>
+      <a href="/">Inicio</a>
+      <a href="/dashboard">Dashboard</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>Planes simples y transparentes</h1>
+    <p>Elige el plan que mejor se adapta a tu negocio. Cancela cuando quieras.</p>
+  </div>
+
+  <div class="plans">
+    <!-- Plan Free -->
+    <div class="plan">
+      <div class="plan-name">Free</div>
+      <div class="plan-price">$0<span>/mes</span></div>
+      <div class="plan-credits">Créditos por anuncios</div>
+      <ul class="plan-features">
+        <li>Acceso básico al bot</li>
+        <li>Hasta 10 recompensas/día viendo anuncios</li>
+        <li>Historial de 7 días</li>
+        <li>Soporte por email</li>
+      </ul>
+      <a href="/" class="btn btn-outline">Empezar gratis</a>
+    </div>
+
+    <!-- Plan Basic -->
+    <div class="plan">
+      <div class="plan-name">Basic</div>
+      <div class="plan-price">$9.99<span>/mes</span></div>
+      <div class="plan-credits">500 créditos/mes</div>
+      <ul class="plan-features">
+        <li>500 créditos mensuales</li>
+        <li>Sin anuncios</li>
+        <li>Historial de 30 días</li>
+        <li>Soporte prioritario</li>
+      </ul>
+      <button class="btn btn-primary" onclick="subscribe('basic')">Suscribirse</button>
+    </div>
+
+    <!-- Plan Pro -->
+    <div class="plan popular">
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">$29.99<span>/mes</span></div>
+      <div class="plan-credits">2.000 créditos/mes</div>
+      <ul class="plan-features">
+        <li>2.000 créditos mensuales</li>
+        <li>Sin anuncios</li>
+        <li>Historial ilimitado</li>
+        <li>Soporte prioritario 24/7</li>
+        <li>Acceso a funciones beta</li>
+      </ul>
+      <button class="btn btn-primary" onclick="subscribe('pro')">Suscribirse</button>
+    </div>
+
+    <!-- Plan Enterprise -->
+    <div class="plan">
+      <div class="plan-name">Enterprise</div>
+      <div class="plan-price">$99.99<span>/mes</span></div>
+      <div class="plan-credits">10.000 créditos/mes</div>
+      <ul class="plan-features">
+        <li>10.000 créditos mensuales</li>
+        <li>Sin anuncios</li>
+        <li>Historial ilimitado</li>
+        <li>Soporte dedicado</li>
+        <li>SLA garantizado</li>
+        <li>Integración personalizada</li>
+      </ul>
+      <button class="btn btn-primary" onclick="subscribe('enterprise')">Suscribirse</button>
+    </div>
+  </div>
+
+  <div class="faq">
+    <h2>Preguntas frecuentes</h2>
+    <div class="faq-item">
+      <h3>¿Qué son los créditos?</h3>
+      <p>Cada interacción con el bot consume créditos. Al empezar el mes, tu saldo se renueva según tu plan.</p>
+    </div>
+    <div class="faq-item">
+      <h3>¿Puedo cambiar de plan?</h3>
+      <p>Sí, puedes subir o bajar de plan en cualquier momento desde tu dashboard. El cambio es inmediato.</p>
+    </div>
+    <div class="faq-item">
+      <h3>¿Cómo cancelo?</h3>
+      <p>Desde tu dashboard → Gestionar suscripción. No hay permanencia ni penalización.</p>
+    </div>
+    <div class="faq-item">
+      <h3>¿Los créditos no usados se acumulan?</h3>
+      <p>No, los créditos se renuevan al inicio de cada ciclo de facturación.</p>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    // Obtener clientId del localStorage (o generarlo)
+    function getClientId() {
+      let id = localStorage.getItem('popbot_client_id');
+      if (!id) {
+        id = 'guest_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('popbot_client_id', id);
+      }
+      return id;
+    }
+
+    function getEmail() {
+      return localStorage.getItem('popbot_email') || prompt('Introduce tu email para continuar:');
+    }
+
+    function showToast(msg, isError = false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isError ? '#c0392b' : '#27ae60';
+      t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 3500);
+    }
+
+    async function subscribe(plan) {
+      const clientId = getClientId();
+      const email = getEmail();
+      if (!email) return;
+      localStorage.setItem('popbot_email', email);
+
+      try {
+        const res = await fetch('/api/stripe/create-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan, clientId, email }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          showToast(data.error || 'Error al iniciar el pago.', true);
+        }
+      } catch (err) {
+        showToast('Error de conexión. Intenta de nuevo.', true);
+      }
+    }
+  </script>
+</body>
+</html>

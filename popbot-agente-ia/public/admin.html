@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — pop BOT</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; }
+    nav { padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; }
+    nav .logo { font-size: 18px; font-weight: 700; color: #a78bfa; }
+    nav a { color: #aaa; text-decoration: none; font-size: 13px; margin-left: 20px; }
+
+    .layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 49px); }
+
+    .sidebar { background: #13131e; border-right: 1px solid #222; padding: 20px 0; }
+    .sidebar h3 { padding: 0 20px 12px; font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.08em; }
+    .caso-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; cursor: pointer; border-left: 3px solid transparent; transition: background 0.15s; font-size: 14px; }
+    .caso-item:hover { background: #1e1e2e; }
+    .caso-item.active { background: #1e1e2e; border-left-color: #a78bfa; color: #fff; }
+    .caso-item .delete-btn { opacity: 0; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+    .caso-item:hover .delete-btn { opacity: 1; }
+    .add-caso-btn { margin: 12px 16px 0; width: calc(100% - 32px); padding: 9px; background: #a78bfa22; border: 1px dashed #a78bfa55; color: #a78bfa; border-radius: 8px; cursor: pointer; font-size: 13px; text-align: center; }
+    .add-caso-btn:hover { background: #a78bfa33; }
+
+    .editor { padding: 28px 32px; overflow-y: auto; }
+    .editor h2 { font-size: 20px; font-weight: 700; margin-bottom: 24px; }
+
+    .section-box { background: #16161f; border: 1px solid #2a2a3a; border-radius: 12px; padding: 22px; margin-bottom: 20px; }
+    .section-box h3 { font-size: 14px; font-weight: 700; color: #a78bfa; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    label { display: block; font-size: 12px; color: #888; margin-bottom: 5px; margin-top: 12px; }
+    label:first-child { margin-top: 0; }
+    input[type=text], textarea { width: 100%; background: #0f0f1a; border: 1px solid #2a2a3a; border-radius: 8px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; font-family: inherit; resize: vertical; }
+    input[type=text]:focus, textarea:focus { outline: none; border-color: #a78bfa; }
+    textarea { min-height: 70px; }
+
+    .ejemplos-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .ejemplo-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: start; }
+    .ejemplo-row textarea { min-height: 52px; font-size: 13px; }
+    .remove-ej { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 18px; padding: 8px 4px; align-self: center; }
+    .add-ej-btn { background: none; border: 1px dashed #2a2a3a; color: #888; border-radius: 8px; padding: 8px; width: 100%; cursor: pointer; font-size: 13px; margin-top: 6px; }
+    .add-ej-btn:hover { border-color: #a78bfa; color: #a78bfa; }
+
+    .inst-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .inst-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
+    .inst-row input { font-size: 13px; }
+
+    .actions { display: flex; gap: 10px; margin-top: 24px; }
+    .btn { padding: 11px 24px; border-radius: 9px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; transition: opacity 0.15s; }
+    .btn-save { background: linear-gradient(135deg, #a78bfa, #667eea); color: #fff; }
+    .btn-save:hover { opacity: 0.85; }
+    .btn-test { background: #1e1e2e; border: 1px solid #2a2a3a; color: #aaa; }
+    .btn-test:hover { border-color: #a78bfa; color: #a78bfa; }
+
+    #toast { position: fixed; bottom: 24px; right: 24px; background: #27ae60; color: #fff; padding: 12px 20px; border-radius: 10px; display: none; font-size: 13px; z-index: 999; }
+    .empty-state { color: #555; text-align: center; padding: 60px 20px; line-height: 1.8; }
+    .bot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  </style>
+</head>
+<body>
+<nav>
+  <div class="logo">pop BOT — Admin</div>
+  <div>
+    <a href="/">Chat</a>
+    <a href="/dashboard">Dashboard</a>
+  </div>
+</nav>
+
+<div class="layout">
+  <div class="sidebar">
+    <h3>Casos</h3>
+    <div id="casos-list"></div>
+    <button class="add-caso-btn" onclick="addCaso()">+ Nuevo caso</button>
+  </div>
+
+  <div class="editor">
+    <div id="editor-content">
+      <div class="empty-state">
+        Selecciona un caso para editarlo<br>o crea uno nuevo.<br><br>
+        <small style="color:#444">Los cambios se aplican al instante, sin reiniciar el servidor.</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let datos = null;
+let casoActivo = null;
+
+function showToast(msg, error = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = error ? '#e74c3c' : '#27ae60';
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+async function load() {
+  const res = await fetch('/api/casos');
+  datos = await res.json();
+  renderSidebar();
+}
+
+function renderSidebar() {
+  const list = document.getElementById('casos-list');
+  const casoItems = (datos.casos || []).map(c => `
+    <div class="caso-item ${casoActivo === c.id ? 'active' : ''}" onclick="selectCaso('${c.id}')">
+      <span>${esc(c.nombre)}</span>
+      <button class="delete-btn" onclick="deleteCaso(event,'${c.id}')">×</button>
+    </div>`).join('');
+
+  const botItem = `<div class="caso-item ${casoActivo === '__bot__' ? 'active' : ''}" onclick="renderBotEditor()" style="color:#888;font-size:13px;margin-top:8px">⚙️ Config del bot</div>`;
+
+  list.innerHTML = casoItems + botItem;
+}
+
+function selectCaso(id) {
+  casoActivo = id;
+  renderSidebar();
+  const caso = datos.casos.find(c => c.id === id);
+  if (caso) renderCasoEditor(caso);
+}
+
+function renderBotEditor() {
+  casoActivo = '__bot__';
+  renderSidebar();
+  const b = datos.bot || {};
+  const insts = datos.instrucciones_globales || [];
+
+  document.getElementById('editor-content').innerHTML = `
+    <h2>Configuración del bot</h2>
+    <div class="section-box">
+      <h3>Identidad</h3>
+      <div class="bot-grid">
+        <div>
+          <label>Nombre del asistente</label>
+          <input type="text" id="bot-nombre" value="${esc(b.nombre||'')}">
+        </div>
+        <div>
+          <label>Idioma</label>
+          <input type="text" id="bot-idioma" value="${esc(b.idioma||'es')}">
+        </div>
+      </div>
+      <label>Rol (qué es el bot)</label>
+      <input type="text" id="bot-rol" value="${esc(b.rol||'')}">
+      <label>Personalidad (cómo habla, qué tono usa)</label>
+      <textarea id="bot-personalidad">${esc(b.personalidad||'')}</textarea>
+    </div>
+
+    <div class="section-box">
+      <h3>Instrucciones globales</h3>
+      <p style="font-size:13px;color:#666;margin-bottom:10px">Reglas que el bot siempre sigue, en cualquier situación.</p>
+      <div class="inst-list" id="inst-list">
+        ${insts.map((inst, i) => `
+          <div class="inst-row">
+            <input type="text" value="${esc(inst)}" oninput="datos.instrucciones_globales[${i}]=this.value">
+            <button class="remove-ej" onclick="removeInst(${i})">×</button>
+          </div>`).join('')}
+      </div>
+      <button class="add-ej-btn" onclick="addInst()">+ Añadir instrucción</button>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-save" onclick="saveBotConfig()">Guardar</button>
+    </div>`;
+}
+
+function addInst() {
+  datos.instrucciones_globales = datos.instrucciones_globales || [];
+  datos.instrucciones_globales.push('');
+  renderBotEditor();
+}
+
+function removeInst(i) {
+  datos.instrucciones_globales.splice(i, 1);
+  renderBotEditor();
+}
+
+function saveBotConfig() {
+  datos.bot = {
+    nombre: document.getElementById('bot-nombre').value,
+    rol: document.getElementById('bot-rol').value,
+    personalidad: document.getElementById('bot-personalidad').value,
+    idioma: document.getElementById('bot-idioma').value,
+  };
+  saveAll('Configuración guardada.');
+}
+
+function renderCasoEditor(caso) {
+  document.getElementById('editor-content').innerHTML = `
+    <h2>${esc(caso.nombre)}</h2>
+
+    <div class="section-box">
+      <h3>Información del caso</h3>
+      <label>Nombre</label>
+      <input type="text" id="c-nombre" value="${esc(caso.nombre)}">
+      <label>Cuándo aplica (describe la situación)</label>
+      <input type="text" id="c-desc" value="${esc(caso.descripcion||'')}">
+      <label>Qué debe hacer el bot en este caso</label>
+      <textarea id="c-instruccion" style="min-height:100px">${esc(caso.instruccion||'')}</textarea>
+    </div>
+
+    <div class="section-box">
+      <h3>Ejemplos de conversación</h3>
+      <p style="font-size:13px;color:#666;margin-bottom:10px">
+        Enseña al bot con ejemplos reales. Cuantos más pongas, más preciso será.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-bottom:4px">
+        <span style="font-size:11px;color:#444;padding-left:2px">EL USUARIO DICE...</span>
+        <span style="font-size:11px;color:#444;padding-left:2px">EL BOT RESPONDE...</span>
+        <span></span>
+      </div>
+      <div class="ejemplos-list" id="ejemplos-list">
+        ${(caso.ejemplos||[]).map((e,i) => `
+          <div class="ejemplo-row">
+            <textarea oninput="updateEj('${caso.id}',${i},'usuario',this.value)">${esc(e.usuario||'')}</textarea>
+            <textarea oninput="updateEj('${caso.id}',${i},'asistente',this.value)">${esc(e.asistente||'')}</textarea>
+            <button class="remove-ej" onclick="removeEj('${caso.id}',${i})">×</button>
+          </div>`).join('')}
+      </div>
+      <button class="add-ej-btn" onclick="addEjemplo('${caso.id}')">+ Añadir ejemplo</button>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-save" onclick="saveCaso('${caso.id}')">Guardar caso</button>
+      <button class="btn btn-test" onclick="window.open('/','_blank')">Probar en chat →</button>
+    </div>`;
+}
+
+function updateEj(casoId, i, field, val) {
+  const caso = datos.casos.find(c => c.id === casoId);
+  if (caso && caso.ejemplos[i]) caso.ejemplos[i][field] = val;
+}
+
+function addEjemplo(casoId) {
+  const caso = datos.casos.find(c => c.id === casoId);
+  if (!caso) return;
+  caso.ejemplos = caso.ejemplos || [];
+  caso.ejemplos.push({ usuario: '', asistente: '' });
+  renderCasoEditor(caso);
+}
+
+function removeEj(casoId, i) {
+  const caso = datos.casos.find(c => c.id === casoId);
+  if (!caso) return;
+  caso.ejemplos.splice(i, 1);
+  renderCasoEditor(caso);
+}
+
+function saveCaso(casoId) {
+  const caso = datos.casos.find(c => c.id === casoId);
+  if (!caso) return;
+  caso.nombre = document.getElementById('c-nombre').value;
+  caso.descripcion = document.getElementById('c-desc').value;
+  caso.instruccion = document.getElementById('c-instruccion').value;
+  saveAll('Caso guardado. El bot lo aplica al instante.');
+}
+
+function addCaso() {
+  const nombre = prompt('Nombre del nuevo caso (ej: "Queja de cliente"):');
+  if (!nombre) return;
+  datos.casos = datos.casos || [];
+  const nuevo = {
+    id: nombre.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now(),
+    nombre,
+    descripcion: '',
+    instruccion: '',
+    ejemplos: [],
+  };
+  datos.casos.push(nuevo);
+  casoActivo = nuevo.id;
+  renderSidebar();
+  renderCasoEditor(nuevo);
+}
+
+async function deleteCaso(e, id) {
+  e.stopPropagation();
+  if (!confirm('¿Eliminar este caso?')) return;
+  datos.casos = datos.casos.filter(c => c.id !== id);
+  if (casoActivo === id) {
+    casoActivo = null;
+    document.getElementById('editor-content').innerHTML = '<div class="empty-state">Caso eliminado.</div>';
+  }
+  await saveAll('Caso eliminado.');
+  renderSidebar();
+}
+
+async function saveAll(msg) {
+  try {
+    const res = await fetch('/api/casos', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos),
+    });
+    const data = await res.json();
+    if (data.ok) showToast(msg || 'Guardado.');
+    else showToast(data.error || 'Error al guardar.', true);
+  } catch (err) {
+    showToast('Error de conexión.', true);
+  }
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+load();
+</script>
+</body>
+</html>
