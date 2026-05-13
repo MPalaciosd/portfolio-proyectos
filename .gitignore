@@ -1,0 +1,38 @@
+# Secrets
+.env
+*.env
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Build outputs
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Storage / data uploads
+storage/
+*.pdf
+*.mp3
+*.zip
+
+# Coverage
+coverage/
+.nyc_output/

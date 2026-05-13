@@ -1,0 +1,274 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "Eres un asistente de agenda. Si te pido añadir algo, usa 'Append row'. Si te pido leer, usa 'Get row(s)'. Responde siempre de forma corta"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "8e8e0409-d1e0-4326-b87f-c55588287986",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        80,
+        208
+      ],
+      "id": "817493af-9dd6-48f2-b357-6cc793f99f15",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "iYOmpri0WTA8TJ6E",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1F7dWe9JZIYUo3IRHpl_ujykOt6e1EQLJ3x4-NgTuGGs",
+          "mode": "list",
+          "cachedResultName": "Mi_Agenda_Agente",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1F7dWe9JZIYUo3IRHpl_ujykOt6e1EQLJ3x4-NgTuGGs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1F7dWe9JZIYUo3IRHpl_ujykOt6e1EQLJ3x4-NgTuGGs/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Fecha/Hora": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Fecha_Hora', ``, 'string') }}",
+            "Evento/Tarea": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Evento_Tarea', ``, 'string') }}",
+            "Categoría": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Categor_a', ``, 'string') }}",
+            "Prioridad": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prioridad', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Fecha/Hora",
+              "displayName": "Fecha/Hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Evento/Tarea",
+              "displayName": "Evento/Tarea",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Categoría",
+              "displayName": "Categoría",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Prioridad",
+              "displayName": "Prioridad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        336,
+        208
+      ],
+      "id": "77823760-91b9-46c5-8ed1-ab45a54ae6d3",
+      "name": "Append row in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G2O70L8gbmZkcAcM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "dabfff1e-a9a8-4f0e-89e4-a6d1f9bada5b",
+      "name": "Telegram Trigger",
+      "webhookId": "c3b3edda-a9e9-480f-b2ca-57cba791df97",
+      "credentials": {
+        "telegramApi": {
+          "id": "QBiDRwNlUXatDHI7",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Telegram Trigger\"].json[\"message\"][\"chat\"][\"id\"] }}",
+        "text": "={{ $node[\"AI Agent\"].json[\"output\"] }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        560,
+        1
+      ],
+      "id": "fce54b1a-bb06-467f-9791-7c0dc6301dcd",
+      "name": "Send a text message",
+      "webhookId": "4da01f93-dd30-47cb-b64f-7093020ed0f3",
+      "credentials": {
+        "telegramApi": {
+          "id": "bYd0wSLG8JIlTpIk",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1F7dWe9JZIYUo3IRHpl_ujykOt6e1EQLJ3x4-NgTuGGs",
+          "mode": "list",
+          "cachedResultName": "Mi_Agenda_Agente",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1F7dWe9JZIYUo3IRHpl_ujykOt6e1EQLJ3x4-NgTuGGs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1F7dWe9JZIYUo3IRHpl_ujykOt6e1EQLJ3x4-NgTuGGs/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        496,
+        208
+      ],
+      "id": "196653ab-f58b-4137-80b0-170bff3d154a",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G2O70L8gbmZkcAcM",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6ac84700-b38f-4f7e-9819-73a72171cb3e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d69e3ed2f6f221fdc19e2bcc554104c8c6de5017f78568b334c9d0b48403bac1"
+  },
+  "id": "1b7nAYQHS3Jl1eWB",
+  "tags": []
+}

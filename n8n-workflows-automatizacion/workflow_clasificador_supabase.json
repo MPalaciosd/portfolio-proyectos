@@ -1,0 +1,269 @@
+{
+  "name": "Agente Clasificador Incidencias + Supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 400],
+      "credentials": {
+        "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" }
+      },
+      "webhookId": "telegram-webhook-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $input.first().json;\nconst text = msg?.message?.text || '';\nconst chatId = msg?.message?.chat?.id;\nconst from = msg?.message?.from;\nconst userName = from?.username || from?.first_name || 'Desconocido';\nconst userId = from?.id?.toString() || 'unknown';\nconst messageId = msg?.message?.message_id;\nconst now = new Date();\n\nif (!text || text.startsWith('/')) {\n  return [{ json: { skip: true, chatId, text, userName, isCommand: text.startsWith('/'), command: text } }];\n}\n\nreturn [{\n  json: {\n    skip: false,\n    chatId,\n    userName,\n    userId,\n    messageId,\n    text,\n    timestamp: now.toISOString(),\n    date: now.toLocaleDateString('es-ES'),\n    time: now.toLocaleTimeString('es-ES')\n  }\n}];"
+      },
+      "id": "extract-message",
+      "name": "Extraer mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-skip",
+      "name": "¿Es incidencia?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/get_training_examples",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"limit_per_group\": 3 }"
+      },
+      "id": "fetch-training",
+      "name": "Obtener ejemplos de entrenamiento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construir el bloque de few-shot examples desde Supabase\nconst trainingRows = $input.first().json;\nconst incidenciaData = $('Extraer mensaje').first().json;\n\nlet fewShotBlock = '';\n\nif (Array.isArray(trainingRows) && trainingRows.length > 0) {\n  fewShotBlock = '\\n\\n=== EJEMPLOS DE ENTRENAMIENTO (few-shot) ===\\n';\n  \n  // Agrupar por categoría\n  const byGroup = {};\n  trainingRows.forEach(row => {\n    if (!byGroup[row.categoria]) byGroup[row.categoria] = [];\n    byGroup[row.categoria].push(row);\n  });\n  \n  Object.entries(byGroup).forEach(([cat, examples]) => {\n    fewShotBlock += `\\n[${cat}]\\n`;\n    examples.forEach(ex => {\n      fewShotBlock += `  Ejemplo: \"${ex.texto_ejemplo}\"\\n`;\n      if (ex.razon_ejemplo) fewShotBlock += `  Razón: ${ex.razon_ejemplo}\\n`;\n    });\n  });\n  \n  fewShotBlock += '\\n=== FIN EJEMPLOS ===';\n}\n\nreturn [{\n  json: {\n    ...incidenciaData,\n    fewShotBlock,\n    trainingCount: trainingRows?.length || 0\n  }\n}];"
+      },
+      "id": "build-prompt",
+      "name": "Construir prompt con ejemplos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 1024,\n  \"system\": \"Eres un agente experto en clasificación de incidencias de un sistema de videoactas municipales (plenos, grabaciones, publicación de vídeos, firma digital, repositorio).\\n\\nTu tarea es analizar la incidencia que recibas y clasificarla en UNA de estas 9 categorías:\\n\\nGRUPO 1 - Operaciones sobre vídeos: Edición, recorte, unión, descarga, exportación o manipulación directa de archivos de vídeo ya grabados.\\nGRUPO 2 - Vídeo no visible/publicado: El vídeo existe pero no aparece en la web, no se puede reproducir, error al visualizarlo o está pendiente de publicación.\\nGRUPO 3 - Problemas de firma: Errores en el proceso de firma digital del acta o videoacta, fallo técnico del sistema de firma.\\nGRUPO 4 - Cambios de configuración: Peticiones de cambio en ajustes, parámetros, plantillas, usuarios, permisos o cualquier configuración del sistema.\\nGRUPO 5 - Grabación / audio / cámaras: Problemas durante la grabación en directo, fallos de audio, cámaras no detectadas, cortes de grabación, hardware del pleno.\\nGRUPO 6 - Repositorio / indexación: Problemas con el repositorio documental, indexación incorrecta, metadatos erróneos, estructura de expedientes.\\nGRUPO 7 - Soporte a plenos: Acompañamiento, formación, asistencia técnica presencial o remota para la celebración de un pleno.\\nGRUPO 8 - Error usuario / formación: El problema lo causó el usuario por desconocimiento. Necesita formación o aclaración del procedimiento.\\nGRUPO 9 - Infraestructura / sistema: Caídas de servidor, problemas de red, actualizaciones de sistema, mantenimiento de infraestructura.\\n\\nREGLAS DE DISTINCIÓN CRÍTICAS:\\n- Si el usuario NO SABE cómo firmar → GRUPO 8 (no GRUPO 3)\\n- Si el sistema de firma falla técnicamente → GRUPO 3\\n- Si pide asistencia para un pleno futuro → GRUPO 7\\n- Si hay problema de audio/vídeo DURANTE grabación → GRUPO 5\\n- Si el vídeo ya existe pero no se ve → GRUPO 2\\n{{ $json.fewShotBlock }}\\n\\nResponde SIEMPRE en este formato JSON exacto, sin texto adicional ni backticks:\\n{\\n  \\\"categoria\\\": \\\"GRUPO X - Nombre del grupo\\\",\\n  \\\"numero_grupo\\\": X,\\n  \\\"prioridad\\\": \\\"ALTA|MEDIA|BAJA\\\",\\n  \\\"confianza\\\": \\\"ALTA|MEDIA|BAJA\\\",\\n  \\\"razon_clasificacion\\\": \\\"Explicación detallada con palabras clave detectadas\\\",\\n  \\\"palabras_clave\\\": [\\\"palabra1\\\", \\\"palabra2\\\"],\\n  \\\"resumen_incidencia\\\": \\\"Resumen en 1-2 frases\\\",\\n  \\\"accion_recomendada\\\": \\\"Qué debería hacer el técnico\\\",\\n  \\\"requiere_revision_humana\\\": false\\n}\\n\\nPrioridad ALTA: pleno inminente con fallo (GRUPO 5,7), caída sistema (GRUPO 9)\\nPrioridad MEDIA: firma bloqueante (GRUPO 3), vídeo no publicado (GRUPO 2)\\nPrioridad BAJA: consultas, formación, cambios no urgentes\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Clasifica esta incidencia:\\n\\n{{ $json.text }}\"\n    }\n  ]\n}"
+      },
+      "id": "claude-agent",
+      "name": "Agente Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 300],
+      "credentials": {
+        "httpHeaderAuth": { "id": "ANTHROPIC_CREDENTIAL_ID", "name": "Anthropic API Key" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst prevData = $('Construir prompt con ejemplos').first().json;\n\nlet rawText = '';\ntry {\n  rawText = response.content[0].text;\n} catch(e) {\n  rawText = '{}';\n}\n\nlet parsed;\ntry {\n  const clean = rawText.replace(/```json|```/g, '').trim();\n  parsed = JSON.parse(clean);\n} catch(e) {\n  parsed = {\n    categoria: 'ERROR - No clasificado',\n    numero_grupo: 0,\n    prioridad: 'MEDIA',\n    confianza: 'BAJA',\n    razon_clasificacion: 'Error al parsear respuesta del agente: ' + rawText.substring(0, 300),\n    palabras_clave: [],\n    resumen_incidencia: prevData.text.substring(0, 150),\n    accion_recomendada: 'Revisión manual necesaria',\n    requiere_revision_humana: true\n  };\n}\n\nconst emojis = { 1:'🎬', 2:'👁️', 3:'✍️', 4:'⚙️', 5:'🎙️', 6:'📁', 7:'🏛️', 8:'👤', 9:'🖥️', 0:'❓' };\nconst prioEmojis = { 'ALTA':'🔴', 'MEDIA':'🟡', 'BAJA':'🟢' };\nconst confEmojis = { 'ALTA':'✅', 'MEDIA':'⚠️', 'BAJA':'🔸' };\n\nconst grupoEmoji = emojis[parsed.numero_grupo] || '❓';\nconst prioEmoji = prioEmojis[parsed.prioridad] || '⚪';\nconst confEmoji = confEmojis[parsed.confianza] || '❓';\n\nconst telegramMsg = \n  `${grupoEmoji} *CLASIFICACIÓN DE INCIDENCIA*\\n\\n` +\n  `📋 *Categoría:* ${parsed.categoria}\\n` +\n  `${prioEmoji} *Prioridad:* ${parsed.prioridad}\\n` +\n  `${confEmoji} *Confianza IA:* ${parsed.confianza}\\n\\n` +\n  `📝 *Resumen:*\\n${parsed.resumen_incidencia}\\n\\n` +\n  `🔍 *¿Por qué esta categoría?*\\n${parsed.razon_clasificacion}\\n\\n` +\n  `🛠️ *Acción recomendada:*\\n${parsed.accion_recomendada}\\n\\n` +\n  `🏷️ *Palabras clave:* ${(parsed.palabras_clave || []).join(', ')}` +\n  (parsed.requiere_revision_humana ? '\\n\\n⚠️ _Este caso requiere revisión humana_' : '') +\n  `\\n\\n🆔 _ID: ${prevData.timestamp}_`;\n\nreturn [{\n  json: {\n    ...prevData,\n    clasificacion: parsed,\n    telegramMsg,\n    // Campos para Supabase\n    sb_texto: prevData.text,\n    sb_usuario: prevData.userName,\n    sb_chat_id: prevData.chatId?.toString(),\n    sb_categoria: parsed.categoria,\n    sb_numero_grupo: parsed.numero_grupo,\n    sb_prioridad: parsed.prioridad,\n    sb_confianza: parsed.confianza,\n    sb_razon: parsed.razon_clasificacion,\n    sb_palabras_clave: parsed.palabras_clave || [],\n    sb_resumen: parsed.resumen_incidencia,\n    sb_accion: parsed.accion_recomendada,\n    sb_revision: parsed.requiere_revision_humana,\n    sb_ejemplos_usados: prevData.trainingCount || 0,\n    sb_timestamp: prevData.timestamp\n  }\n}];"
+      },
+      "id": "parse-response",
+      "name": "Parsear respuesta Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.telegramMsg }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "id": "send-telegram",
+      "name": "Responder en Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1760, 200],
+      "credentials": {
+        "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/logs_incidencias",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"texto_incidencia\": \"{{ $json.sb_texto.replace(/\"/g, '\\\\\"') }}\",\n  \"usuario_telegram\": \"{{ $json.sb_usuario }}\",\n  \"chat_id\": \"{{ $json.sb_chat_id }}\",\n  \"categoria_asignada\": \"{{ $json.sb_categoria }}\",\n  \"numero_grupo\": {{ $json.sb_numero_grupo }},\n  \"prioridad\": \"{{ $json.sb_prioridad }}\",\n  \"confianza_ia\": \"{{ $json.sb_confianza }}\",\n  \"razon_clasificacion\": \"{{ $json.sb_razon.replace(/\"/g, '\\\\\"') }}\",\n  \"palabras_clave\": {{ JSON.stringify($json.sb_palabras_clave) }},\n  \"resumen\": \"{{ $json.sb_resumen.replace(/\"/g, '\\\\\"') }}\",\n  \"accion_recomendada\": \"{{ $json.sb_accion.replace(/\"/g, '\\\\\"') }}\",\n  \"requiere_revision\": {{ $json.sb_revision }},\n  \"ejemplos_entrenamiento_usados\": {{ $json.sb_ejemplos_usados }},\n  \"categoria_corregida\": null,\n  \"revisado\": false,\n  \"notas_revision\": null,\n  \"created_at\": \"{{ $json.sb_timestamp }}\"\n}"
+      },
+      "id": "supabase-log",
+      "name": "Guardar log en Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraer el ID del registro recién insertado para el informe\nconst inserted = $input.first().json;\nconst prevData = $('Parsear respuesta Claude').first().json;\n\nconst recordId = Array.isArray(inserted) ? inserted[0]?.id : inserted?.id;\n\nreturn [{\n  json: {\n    ...prevData,\n    supabase_record_id: recordId || null\n  }\n}];"
+      },
+      "id": "extract-record-id",
+      "name": "Extraer ID registro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 400,\n  \"system\": \"Genera un informe de actividad breve del bot clasificador. Máximo 4 frases. Usa lenguaje técnico pero claro.\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Genera un informe de actividad para el registro de auditoría.\\nIncidencia recibida: {{ $json.sb_texto.substring(0,200) }}\\nCategoría asignada: {{ $json.sb_categoria }}\\nPrioridad: {{ $json.sb_prioridad }}\\nConfianza: {{ $json.sb_confianza }}\\nEjemplos de entrenamiento usados: {{ $json.sb_ejemplos_usados }}\\n\\nEl informe debe explicar: qué detectó el bot, qué reglas aplicó, por qué eligió esa categoría y si hay algo a vigilar.\"\n    }\n  ]\n}"
+      },
+      "id": "generate-report",
+      "name": "Generar informe del bot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, 380],
+      "credentials": {
+        "httpHeaderAuth": { "id": "ANTHROPIC_CREDENTIAL_ID", "name": "Anthropic API Key" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/logs_incidencias?id=eq.{{ $('Extraer ID registro').first().json.supabase_record_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_ANON_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"informe_actividad_bot\": \"{{ $input.first().json.content[0].text.replace(/\"/g, '\\\\\"') }}\"\n}"
+      },
+      "id": "update-report",
+      "name": "Actualizar informe en Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2420, 380]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extraer mensaje').first().json.chatId }}",
+        "text": "ℹ️ *Clasificador de Incidencias*\n\nEnvíame el texto de la incidencia y la analizaré automáticamente.\n\n_Comandos disponibles:_\n`/categorias` — ver todas las categorías",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "id": "send-help",
+      "name": "Mensaje de ayuda",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [900, 520],
+      "credentials": {
+        "telegramApi": { "id": "TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot" }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{ "node": "Extraer mensaje", "type": "main", "index": 0 }]]
+    },
+    "Extraer mensaje": {
+      "main": [[{ "node": "¿Es incidencia?", "type": "main", "index": 0 }]]
+    },
+    "¿Es incidencia?": {
+      "main": [
+        [{ "node": "Obtener ejemplos de entrenamiento", "type": "main", "index": 0 }],
+        [{ "node": "Mensaje de ayuda", "type": "main", "index": 0 }]
+      ]
+    },
+    "Obtener ejemplos de entrenamiento": {
+      "main": [[{ "node": "Construir prompt con ejemplos", "type": "main", "index": 0 }]]
+    },
+    "Construir prompt con ejemplos": {
+      "main": [[{ "node": "Agente Claude", "type": "main", "index": 0 }]]
+    },
+    "Agente Claude": {
+      "main": [[{ "node": "Parsear respuesta Claude", "type": "main", "index": 0 }]]
+    },
+    "Parsear respuesta Claude": {
+      "main": [[
+        { "node": "Responder en Telegram", "type": "main", "index": 0 },
+        { "node": "Guardar log en Supabase", "type": "main", "index": 0 }
+      ]]
+    },
+    "Guardar log en Supabase": {
+      "main": [[{ "node": "Extraer ID registro", "type": "main", "index": 0 }]]
+    },
+    "Extraer ID registro": {
+      "main": [[{ "node": "Generar informe del bot", "type": "main", "index": 0 }]]
+    },
+    "Generar informe del bot": {
+      "main": [[{ "node": "Actualizar informe en Supabase", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "incidencias" }, { "name": "supabase" }, { "name": "telegram" }]
+}
