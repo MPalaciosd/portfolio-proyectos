@@ -17,13 +17,13 @@ import {
 // ==========================================================
 // Estos son los valores específicos de tu proyecto.
 const firebaseConfig = {
-  apiKey: "AIzaSyCilDhAZ54KCN4doRQ-zCer9Lw0S747VKY",
-  authDomain: "gestion-sw-ventas.firebaseapp.com",
-  projectId: "gestion-sw-ventas",
-  storageBucket: "gestion-sw-ventas.firebase storage.app",
-  messagingSenderId: "981508101828",
-  appId: "1:981508101828:web:80df68c8293cf809da9b91",
-  measurementId: "G-73MSMQJ8ZS"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 // Definición de variables para la aplicación local
