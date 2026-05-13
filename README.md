@@ -99,6 +99,26 @@ Bot funcional acompañado de una landing page en HTML.
 
 ---
 
+### 10. 🕷️ [scraper-contactos-proveedores](./scraper-contactos-proveedores)
+**Scraper de directorios web de proveedores**
+
+Herramienta de extracción automática de datos de contacto desde directorios web paginados.
+
+- **Stack:** Python · Playwright
+- **Características:** Paginación automática, manejo de cookies, extracción de teléfonos/emails con regex, exportación a CSV
+
+---
+
+### 11. 📸 [monitor-capturas-pantalla](./monitor-capturas-pantalla)
+**Monitor de capturas de pantalla programadas**
+
+Utilidad de monitorización que toma capturas a intervalos configurables con timestamp automático.
+
+- **Stack:** Python · Pillow
+- **Características:** Intervalo configurable, contador de capturas, carpeta de salida personalizable, CLI con argparse
+
+---
+
 ## 🧰 Tecnologías utilizadas
 
 | Categoría | Tecnologías |
@@ -107,7 +127,7 @@ Bot funcional acompañado de una landing page en HTML.
 | **Frontend** | React, HTML/CSS, Tailwind CSS |
 | **Bases de datos** | MongoDB, Firebase, Supabase |
 | **IA/LLMs** | Groq, Anthropic Claude API |
-| **Automatización** | Playwright, n8n |
+| **Automatización** | Playwright, n8n, web scraping |
 | **Pagos** | Stripe |
 | **Deploy** | Render.com |
 
